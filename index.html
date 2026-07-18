@@ -3,231 +3,678 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kanto Bites - Your Food Ticket</title>
-  <!-- Qrcode-js CDN -->
+  <title>Kanto Bites - Interactive Pure Web App</title>
+  <!-- Injecting a lightweight, pure JS QR Code builder via CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     :root {
-      --bg-main: #0f172a;
-      --bg-card: #1e293b;
-      --primary: #ea580c;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --success: #10b981;
-      --radius: 16px;
+      --primary: #f97316;
+      --primary-dark: #ea580c;
+      --primary-light: #ffedd5;
+      --bg-main: #fef3c7;
+      --bg-card: #ffffff;
+      --text-dark: #1e293b;
+      --text-light: #64748b;
+      --danger: #ef4444;
+      --radius-xl: 20px;
+      --radius-lg: 12px;
+      --radius-full: 9999px;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
       background-color: var(--bg-main);
-      color: var(--text-main);
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      padding: 16px;
-      display: flex;
-      justify-content: center;
+      color: var(--text-dark);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding-bottom: 140px;
+      min-height: 100vh;
     }
 
-    .ticket-container {
+    .app-wrapper {
       width: 100%;
-      max-width: 400px;
-      background: var(--bg-card);
-      border-radius: var(--radius);
-      padding: 24px;
-      border: 1px solid #334155;
-      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);
-      text-align: center;
+      max-width: 450px;
+      margin: 0 auto;
+      padding: 0 16px;
     }
 
-    h1 { color: var(--primary); font-size: 1.5rem; font-weight: 900; margin-bottom: 4px; }
-    .subtitle { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 24px; }
-
-    /* --- FAKE PROGRESS TRACKER STYLES --- */
-    .tracker-box {
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid #334155;
-      border-radius: 12px;
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background-color: var(--primary);
+      color: white;
       padding: 16px;
-      margin-bottom: 24px;
-      text-align: left;
-    }
-    .tracker-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 10px;
+      border-bottom-left-radius: var(--radius-xl);
+      border-bottom-right-radius: var(--radius-xl);
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      margin-left: -16px;
+      margin-right: -16px;
     }
-    .tracker-title { font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold; letter-spacing: 0.05em; }
-    .tracker-status { font-size: 0.95rem; font-weight: bold; color: #fdba74; }
-    
-    .progress-bar-bg {
-      height: 8px;
-      background: #334155;
-      border-radius: 99px;
-      overflow: hidden;
-      margin-bottom: 8px;
-    }
-    .progress-bar-fill {
-      height: 100%;
-      width: 5%; /* Starts tiny */
-      background: linear-gradient(90deg, #ea580c, #f97316);
-      border-radius: 99px;
-      transition: width 1s ease-in-out;
-    }
-    .tracker-hint { font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-    .pulsing-dot { width: 6px; height: 6px; background: var(--success); border-radius: 50%; animation: pulse 2s infinite; }
-    /* ------------------------------------ */
+    header h1 { font-size: 1.25rem; font-weight: 900; letter-spacing: -0.05em; }
+    header p { font-size: 0.75rem; opacity: 0.9; }
 
-    .qr-wrapper {
-      background: white;
-      padding: 16px;
-      border-radius: 12px;
-      display: inline-block;
-      margin-bottom: 20px;
-    }
-    #qrcode img { margin: 0 auto; }
-
-    .order-details {
-      background: rgba(0,0,0,0.15);
-      border-radius: 12px;
-      padding: 16px;
-      text-align: left;
-      font-size: 0.9rem;
-    }
-    .detail-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
-    .detail-row:last-child { margin-bottom: 0; }
-    .label { color: var(--text-muted); }
-    .val { font-weight: bold; }
-    .items-list {
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px dashed #334155;
-      color: #cbd5e1;
+    /* Active Ticket View */
+    .active-ticket-bar {
+      display: none;
+      background-color: #0284c7;
+      color: white;
+      padding: 12px 16px;
+      border-radius: var(--radius-lg);
+      margin-top: 12px;
+      justify-content: space-between;
+      align-items: center;
       font-size: 0.85rem;
-      white-space: pre-line;
-      line-height: 1.4;
+      font-weight: bold;
+      cursor: pointer;
     }
+
+    /* Progress Tracker Section */
+    .tracker-section {
+      background-color: var(--bg-card);
+      border-radius: var(--radius-xl);
+      padding: 16px;
+      margin: 20px 0;
+      border: 1px solid var(--primary-light);
+    }
+    .tracker-header-wrap {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .tracker-title {
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: var(--primary);
+      text-transform: uppercase;
+    }
+    .tracker-sub-status {
+      font-size: 0.75rem;
+      font-weight: bold;
+      color: var(--text-light);
+    }
+    .tracker-steps {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      opacity: 0.25;
+      transition: opacity 0.4s ease, color 0.4s ease;
+    }
+    .step.active {
+      opacity: 1;
+      color: var(--primary);
+      font-weight: bold;
+    }
+    .step-icon { font-size: 1.75rem; }
+    .step-label { font-size: 0.65rem; margin-top: 4px; }
+    .step-line { height: 2px; background-color: #e2e8f0; flex: 1; margin: 0 8px; margin-top: -12px; }
+    
+    .animate-bounce {
+      animation: bounce 0.8s infinite alternate;
+    }
+    @keyframes bounce {
+      from { transform: translateY(0); }
+      to { transform: translateY(-6px); }
+    }
+
+    /* Menu & Grid */
+    .menu-heading { font-size: 1.15rem; font-weight: 800; margin-bottom: 12px; }
+    .menu-grid { display: flex; flex-direction: column; gap: 12px; }
+    .menu-card {
+      background-color: var(--bg-card);
+      padding: 16px;
+      border-radius: var(--radius-xl);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .card-left { display: flex; align-items: center; gap: 12px; }
+    .card-emoji { font-size: 2rem; background-color: var(--primary-light); padding: 10px; border-radius: var(--radius-lg); }
+    .card-info h3 { font-size: 1rem; font-weight: 800; }
+    .card-desc { font-size: 0.75rem; color: var(--text-light); }
+    .card-price { font-size: 0.875rem; font-weight: 900; color: var(--primary); margin-top: 4px; }
+    .card-add-btn { background-color: var(--primary-light); color: var(--primary-dark); font-weight: 900; width: 32px; height: 32px; border-radius: var(--radius-full); display: flex; justify-content: center; align-items: center; }
+
+    /* Modals & Sheets */
+    .modal-backdrop {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(0,0,0,0.6);
+      z-index: 50;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .modal-backdrop.show { opacity: 1; pointer-events: auto; }
+    .modal-sheet {
+      background-color: var(--bg-card);
+      width: 100%;
+      max-width: 418px;
+      border-radius: var(--radius-xl);
+      padding: 24px;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+    .modal-backdrop.show .modal-sheet { transform: translateY(0); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .modal-header h3 { font-size: 1.25rem; font-weight: 900; }
+    .close-btn { background: none; border: none; font-size: 1.25rem; color: var(--text-light); cursor: pointer; }
+    
+    /* Input Controls */
+    .input-group { margin-bottom: 20px; text-align: left; }
+    .input-label { font-size: 0.85rem; font-weight: bold; color: var(--text-dark); display: block; margin-bottom: 6px; }
+    .text-input { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: var(--radius-lg); font-size: 0.95rem; outline: none; }
+    .text-input:focus { border-color: var(--primary); }
+
+    /* Sauce Configuration UI */
+    .sauce-group-box { background-color: #fff7ed; padding: 16px; border-radius: var(--radius-lg); margin-bottom: 24px; }
+    .sauce-slider-wrap { margin-bottom: 16px; }
+    .slider-meta { display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: bold; color: #9a3412; margin-bottom: 6px; }
+    .sauce-slider { width: 100%; height: 6px; background: #fed7aa; -webkit-appearance: none; appearance: none; border-radius: var(--radius-full); }
+    .sauce-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: var(--radius-full); background: var(--primary); cursor: pointer; }
+    .submit-btn { width: 100%; background-color: var(--primary); color: white; border: none; padding: 14px; border-radius: var(--radius-lg); font-weight: bold; cursor: pointer; }
+
+    /* Order Review Breakdown Item List Styles */
+    .review-list { max-height: 180px; overflow-y: auto; margin-bottom: 20px; border: 1px solid #f1f5f9; border-radius: var(--radius-lg); background-color: #fafafa; }
+    .review-item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; }
+    .review-item-row:last-child { border-bottom: none; }
+    .remove-item-btn { background-color: #fee2e2; color: var(--danger); border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer; }
+
+    /* Custom styles for the generated QR Code area */
+    .qr-container { display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 15px 0; padding: 15px; background: #f8fafc; border-radius: var(--radius-lg); }
+    #qrcode img { border: 4px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: inline-block !important; }
+    .summary-text { font-size: 0.8rem; color: var(--text-light); margin-top: 12px; text-align: center; line-height: 1.4; white-space: pre-line; }
+
+    /* BRANDING TYPOGRAPHY */
+    .branding-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      width: 100%;
+      padding: 4px 0;
+    }
+    .comedic-branding {
+      font-family: "Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif;
+      font-size: 1.9rem;
+      font-weight: 900;
+      color: #f97316;
+      text-shadow: 3px 3px 0px #ffedd5;
+      margin: 6px auto;
+      word-break: break-word;
+      max-width: 95%;
+      line-height: 1.3;
+    }
+
+    /* Fixed Bottom Footer Bar */
+    footer {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background-color: rgba(255,255,255,0.92);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid #f1f5f9;
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 30;
+      max-width: 450px;
+      margin: 0 auto;
+      border-top-left-radius: var(--radius-xl);
+      border-top-right-radius: var(--radius-xl);
+    }
+    .cart-meta-label { font-size: 0.65rem; font-weight: bold; color: var(--text-light); text-transform: uppercase; }
+    .cart-total-price { font-size: 1.25rem; font-weight: 900; }
+    .checkout-btn { background-color: var(--text-dark); color: white; border: none; padding: 12px 24px; border-radius: var(--radius-lg); font-size: 0.875rem; font-weight: bold; cursor: pointer; }
   </style>
 </head>
 <body>
 
-  <div class="ticket-container">
-    <h1>KANTO BITES</h1>
-    <p class="subtitle">Show this screen to Kuya to scan your order</p>
+  <div class="app-wrapper">
+    <header>
+      <div>
+        <h1>KANTO BITES</h1>
+        <p>Fresh & Hot from the Fryer</p>
+      </div>
+      <div class="badge">📍 Stall Live</div>
+    </header>
 
-    <!-- Fake Live Progress Tracking Interface Module -->
-    <div class="tracker-box">
-      <div class="tracker-header">
-        <span class="tracker-title">Order Tracking</span>
-        <span id="live-status-badge" class="tracker-status">Processing...</span>
-      </div>
-      <div class="progress-bar-bg">
-        <div id="live-progress-fill" class="progress-bar-fill"></div>
-      </div>
-      <div class="tracker-hint">
-        <div class="pulsing-dot"></div>
-        <span id="tracker-hint-text">Validating ticket parameters...</span>
-      </div>
+    <!-- Active Ticket Quick View -->
+    <div id="active-ticket-shortcut" class="active-ticket-bar" onclick="reopenActiveOrder()">
+      <span>📄 View Active Order Number & QR</span>
+      <span>👁️ View</span>
     </div>
 
-    <!-- QR Code Container Display Target -->
-    <div class="qr-wrapper">
-      <div id="qrcode"></div>
-    </div>
+    <!-- Progress Tracker UI -->
+    <section class="tracker-section">
+      <div class="tracker-header-wrap">
+        <div class="tracker-title">Live Fryer Feed</div>
+        <div id="tracker-sub-status" class="tracker-sub-status">Ready to order</div>
+      </div>
+      <div class="tracker-steps">
+        <div class="step" id="step-prep">
+          <span class="step-icon">🍢</span>
+          <span class="step-label">Ordered</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step" id="step-fry">
+          <span class="step-icon">🔥</span>
+          <span class="step-label">Frying Now</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step" id="step-ready">
+          <span class="step-icon">🥤</span>
+          <span class="step-label">Ready/Sauced</span>
+        </div>
+      </div>
+    </section>
 
-    <!-- Static Receipt Information Panel Breakdown -->
-    <div class="order-details">
-      <div class="detail-row">
-        <span class="label">Order Number:</span>
-        <span class="val" id="disp-id" style="color:var(--primary);">#0000</span>
+    <h2 class="menu-heading">Tap to Customize Your Cup</h2>
+    <div class="menu-grid" id="menu-container"></div>
+  </div>
+
+  <!-- Customization Sheet Drawer -->
+  <div id="custom-modal" class="modal-backdrop" onclick="handleOutsideClick(event)">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3 id="modal-item-title">Customize Item</h3>
+        <button onclick="closeModal()" class="close-btn">✕</button>
       </div>
-      <div class="detail-row">
-        <span class="label">Customer Name:</span>
-        <span class="val" id="disp-name">---</span>
+      <div class="sauce-group-box">
+        <p style="font-size: 0.875rem; font-weight: bold; margin-bottom: 12px;">Customize Sawsawan Mix Ratio:</p>
+        <div class="sauce-slider-wrap">
+          <div class="slider-meta"><span>Manong's Sweet Sauce</span><span id="sweet-val">50%</span></div>
+          <input type="range" id="slider-sweet" min="0" max="100" value="50" class="sauce-slider" oninput="updateSauceLabels()">
+        </div>
+        <div class="sauce-slider-wrap">
+          <div class="slider-meta"><span>Spicy Pinoy Vinegar</span><span id="spicy-val">50%</span></div>
+          <input type="range" id="slider-spicy" min="0" max="100" value="50" class="sauce-slider" oninput="updateSauceLabels()">
+        </div>
       </div>
-      <div class="detail-row">
-        <span class="label">Total Amount Due:</span>
-        <span class="val" id="disp-total" style="color:var(--success);">₱0.00</span>
-      </div>
-      <div class="items-list" id="disp-items"></div>
+      <button id="add-to-cart-btn" class="submit-btn">Confirm Combo & Add</button>
     </div>
   </div>
 
+  <!-- Checkout Details Sheet -->
+  <div id="checkout-modal" class="modal-backdrop" onclick="handleOutsideClick(event)">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3>Review & Checkout</h3>
+        <button onclick="closeCheckoutModal()" class="close-btn">✕</button>
+      </div>
+      
+      <p class="input-label">Edit items in your cup basket:</p>
+      <div id="checkout-review-list" class="review-list"></div>
+
+      <div class="input-group">
+        <label class="input-label" for="customer-name">Enter Customer Name:</label>
+        <input type="text" id="customer-name" class="text-input" placeholder="e.g., Rico, Maria, Juan" required>
+      </div>
+      <button onclick="promptPreOrderConfirmation();" class="submit-btn">Proceed to Confirmation ➡️</button>
+    </div>
+  </div>
+
+  <!-- Double Check/Confirmation Overlay Modal -->
+  <div id="confirm-modal" class="modal-backdrop" onclick="handleOutsideClick(event)">
+    <div class="modal-sheet" style="text-align: center;">
+      <div class="modal-header">
+        <h3>Confirm Order Details</h3>
+        <button onclick="closeConfirmModal()" class="close-btn">✕</button>
+      </div>
+      <p style="font-size: 0.95rem; margin-bottom: 12px;">Is your street food combo correct?</p>
+      
+      <div style="background-color: #f8fafc; padding: 16px; border-radius: var(--radius-lg); text-align: left; margin-bottom: 20px; line-height: 1.5;">
+        <div class="branding-container">
+          <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-light); text-transform: uppercase;">Customer Alias</span>
+          <div id="confirm-full-name" class="comedic-branding"></div>
+        </div>
+        <p style="margin-top: 8px; text-align: center;"><strong>Total Due Amount:</strong> <span id="confirm-grand-total" style="font-weight: 900; color:var(--primary-dark);"></span></p>
+        <hr style="margin: 10px 0; border: none; border-top: 1px dashed #cbd5e1;">
+        <p style="font-size: 0.8rem; color: var(--text-light);" id="confirm-items-summary"></p>
+      </div>
+
+      <!-- Option Action Controls for Add More vs Finalize -->
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; gap: 12px;">
+          <button onclick="continueShopping()" class="submit-btn" style="background-color: #f97316; flex: 1;">➕ Add More Items</button>
+          <button onclick="generateFinalTicketAndQr();" class="submit-btn" style="background-color: #10b981; flex: 1.3;">Yes, Generate QR ✅</button>
+        </div>
+        <button onclick="closeConfirmModal()" class="submit-btn" style="background-color: #94a3b8; padding: 8px; font-size: 0.8rem;">Review Details / Change Name</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR Display Modal Sheet -->
+  <div id="qr-modal" class="modal-backdrop" onclick="handleOutsideClick(event)">
+    <div class="modal-sheet" style="text-align: center;">
+      <div class="modal-header">
+        <h3 id="qr-order-id">Order #----</h3>
+        <button onclick="closeQrModal()" class="close-btn">✕</button>
+      </div>
+      
+      <!-- Center-Aligned Comedic Title Layout -->
+      <div class="branding-container">
+        <div id="customer-monicker-title" class="comedic-branding"></div>
+      </div>
+      
+      <p style="font-size: 0.85rem; color: var(--text-light); margin-bottom: 10px;">Show this to Kuya at the stall counter to process:</p>
+      
+      <div class="qr-container">
+        <div id="qrcode"></div>
+        <div id="qr-summary" class="summary-text"></div>
+      </div>
+      <p style="font-size:0.75rem; color:var(--text-light); margin-top:5px; font-style:italic;">Keep this open or watch the progress bar below!</p>
+    </div>
+  </div>
+
+  <!-- Footer Navigation Tray -->
+  <footer>
+    <div>
+      <p class="cart-meta-label">Your Cup Total</p>
+      <p id="cart-total" class="cart-total-price">₱0.00</p>
+    </div>
+    <button class="checkout-btn" onclick="openCheckoutModal();">Checkout Basket ➡️</button>
+  </footer>
+
   <script>
-    // Extract state variables from local transfer query string
-    const urlParams = new URLSearchParams(window.location.search);
-    const orderNum = urlParams.get('id') || Math.floor(Math.random() * 900) + 100;
-    const customerName = urlParams.get('name') || "Valued Customer";
-    const amount = urlParams.get('total') || "0";
-    const itemsRaw = urlParams.get('items') || "";
+    const foodItems = [
+      { id: '1', name: 'Manong Fishballs', price: 2.00, emoji: '🍢', desc: 'Crispy flat-fried classic street fishballs' },
+      { id: '2', name: 'Crispy Kwek-Kwek', price: 5.00, emoji: '🥚', desc: 'Deep fried quail eggs in orange tempura batter' },
+      { id: '3', name: 'Overloaded French Fries', price: 35.00, emoji: '🍟', desc: 'Fresh cut potatoes tossed in savory powders' },
+      { id: '4', name: 'Fried Squidballs', price: 4.00, emoji: '🧆', desc: 'Fluffy, thick-cut local squidballs' }
+    ];
 
-    // Render text output fields
-    document.getElementById('disp-id').innerText = `#${orderNum}`;
-    document.getElementById('disp-name').innerText = customerName;
-    document.getElementById('disp-total').innerText = `₱${amount}`;
-    document.getElementById('disp-items').innerText = decodeURIComponent(itemsRaw);
+    const tagalogMonickers = [
+      "Ang Crush ng Bayan", "Ang Alamat ng Kanto", "Ang Hari ng Sawsawan", "Ang Pambansang Bunso",
+      "Bida sa Inuman", "Ang Lodi ng Lahat", "Ang Chika Minute Expert", "Ang Tagapagligtas ng Barya",
+      "Master ng Estetiko", "Ang Palaging Gutom", "Ang Reyna ng Hugot", "Ang taga-Ubos ng Fishball",
+      "Paboritong Suki ni Kuya", "Ang Taga-hingi ng Sukli", "Ang Talentadong Dukha", "Ang Walang Kupas",
+      "Boy Tusok-Tusok", "Ang Prinsesa ng Kalsada", "Ang Palaging Low-Batt", "Ang Hypebeast ng Davao",
+      "Ang Sobra sa Sarsa", "Ang Taga-Kain ng Labis", "Ang Maton ng Pila", "Ang Certified Marites",
+      "Ang Laging Tulog", "Ang Bossing ng Plasa", "Ang Kumakain Nang Tahimik", "Ang Master Chef ng Tabi-Tabi",
+      "Ang Suki ng Suka", "Ang Kampyon ng Kanto", "Ang taga bayad", "Ang tagapagligtas ng na aapi"
+    ];
 
-    // Format uniform internal text structure for Kuya's Reader Engine
-    const qrPayload = `ORDER:${orderNum}\nCUSTOMER:${customerName}\nTOTAL:${amount}\nITEMS:\n${decodeURIComponent(itemsRaw)}`;
-
-    // Generate physical layout dimensions for target QR code node
-    new QRCode(document.getElementById("qrcode"), {
-      text: qrPayload,
-      width: 180,
-      height: 180,
-      colorDark : "#0f172a",
-      colorLight : "#ffffff",
-      correctLevel : QRCode.CorrectLevel.M
-    });
-
-    // --- BENEVOLENT DECEPTION / FAKE PROGRESS TIMELINE ENGINE ---
-    const statusTextNode = document.getElementById('live-status-badge');
-    const progressFillNode = document.getElementById('live-progress-fill');
-    const hintTextNode = document.getElementById('tracker-hint-text');
-
+    let cart = [];
+    let currentSelectedItem = null;
+    let pendingOrderStaging = null; 
+    let activeOrderData = null; 
+    let fakeProgressInterval = null;
     let elapsedSeconds = 0;
 
-    function runFakeProgressTracker() {
-      elapsedSeconds++;
+    // Render Menu Cards
+    const menuContainer = document.getElementById('menu-container');
+    foodItems.forEach(item => {
+      const card = document.createElement('div');
+      card.className = "menu-card";
+      card.onclick = () => { openCustomization(item); };
+      card.innerHTML = `
+        <div class="card-left">
+          <div class="card-emoji">${item.emoji}</div>
+          <div class="card-info">
+            <h3>${item.name}</h3>
+            <p class="card-desc">${item.desc}</p>
+            <p class="card-price">₱${item.price.toFixed(2)} <span>/ pc</span></p>
+          </div>
+        </div>
+        <div class="card-add-btn">+</div>
+      `;
+      menuContainer.appendChild(card);
+    });
 
-      // Stage 1: Order received & Prep (0 to 1.5 minutes)
-      if (elapsedSeconds <= 90) {
-        statusTextNode.innerText = "🔥 Order Received";
-        statusTextNode.style.color = "#fdba74"; 
-        hintTextNode.innerText = "Kuya is reviewing and prepping ingredients...";
-        // Gradual crawl up to 30%
-        progressFillNode.style.width = `${5 + (elapsedSeconds / 90) * 25}%`;
-      } 
-      // Stage 2: In the deep fryer (1.5 to 4.5 minutes)
-      else if (elapsedSeconds > 90 && elapsedSeconds <= 270) {
-        statusTextNode.innerText = "🍳 Frying Active...";
-        statusTextNode.style.color = "#f59e0b";
-        hintTextNode.innerText = "Your street bites are sizzling hot in the fryer!";
-        // Move from 30% to 75%
-        const stageProgress = (elapsedSeconds - 90) / 180;
-        progressFillNode.style.width = `${30 + stageProgress * 45}%`;
-      } 
-      // Stage 3: Saucing & Packaging (4.5 to 6.5 minutes)
-      else if (elapsedSeconds > 270 && elapsedSeconds <= 390) {
-        statusTextNode.innerText = "🥤 Dressing & Saucing";
-        statusTextNode.style.color = "#10b981";
-        hintTextNode.innerText = "Pouring secret glaze mixtures and boxing your snack.";
-        // Move from 75% to 93%
-        const stageProgress = (elapsedSeconds - 270) / 120;
-        progressFillNode.style.width = `${75 + stageProgress * 18}%`;
-      } 
-      // Stage 4: Hold pattern waiting for actual speaker callout (6.5 minutes onwards)
-      else {
-        statusTextNode.innerText = "📢 Ready for Audio Call";
-        statusTextNode.style.color = "#34d399";
-        hintTextNode.innerText = "Listen closely to the speaker system for your name!";
-        progressFillNode.style.width = "96%"; // Hold here indefinitely
+    function openCustomization(item) {
+      currentSelectedItem = item;
+      document.getElementById('modal-item-title').innerText = `Customize ${item.name}`;
+      document.getElementById('custom-modal').classList.add('show');
+    }
+
+    function closeModal() { document.getElementById('custom-modal').classList.remove('show'); }
+    function closeCheckoutModal() { document.getElementById('checkout-modal').classList.remove('show'); }
+    function closeConfirmModal() { document.getElementById('confirm-modal').classList.remove('show'); }
+    function closeQrModal() { document.getElementById('qr-modal').classList.remove('show'); }
+
+    function handleOutsideClick(event) {
+      if (event.target.classList.contains('modal-backdrop')) {
+        closeModal(); closeCheckoutModal(); closeConfirmModal(); closeQrModal();
       }
     }
 
-    // Execute state evaluation update sweep every 1 second
-    setInterval(runFakeProgressTracker, 1000);
-    runFakeProgressTracker(); // Initial instantaneous bootstrap run
+    function updateSauceLabels() {
+      document.getElementById('sweet-val').innerText = `${document.getElementById('slider-sweet').value}%`;
+      document.getElementById('spicy-val').innerText = `${document.getElementById('slider-spicy').value}%`;
+    }
+
+    document.getElementById('add-to-cart-btn').onclick = () => {
+      if (!currentSelectedItem) return;
+      const sweet = document.getElementById('slider-sweet').value;
+      const spicy = document.getElementById('slider-spicy').value;
+      
+      cart.push({
+        uid: Date.now() + Math.random().toString(36).substr(2, 9), 
+        ...currentSelectedItem,
+        sauce: `${sweet}% Swt / ${spicy}% Spc`
+      });
+
+      refreshCartPriceTotal();
+      closeModal();
+    };
+
+    function refreshCartPriceTotal() {
+      const totalSum = cart.reduce((acc, item) => acc + item.price, 0);
+      document.getElementById('cart-total').innerText = `₱${totalSum.toFixed(2)}`;
+    }
+
+    function openCheckoutModal() {
+      if (cart.length === 0) {
+        alert("Your basket is empty! Tap some street food items first.");
+        return;
+      }
+      renderReviewItemList();
+      document.getElementById('checkout-modal').classList.add('show');
+    }
+
+    function renderReviewItemList() {
+      const container = document.getElementById('checkout-review-list');
+      container.innerHTML = "";
+
+      if (cart.length === 0) {
+        container.innerHTML = `<div style="padding:16px; font-size:0.85rem; color:var(--text-light); text-align:center;">Basket emptied!</div>`;
+        return;
+      }
+
+      cart.forEach(item => {
+        const row = document.createElement('div');
+        row.className = "review-item-row";
+        row.innerHTML = `
+          <div>
+            <strong>${item.name}</strong>
+            <div style="font-size:0.7rem; color:var(--text-light);">${item.sauce}</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <span style="font-weight:700;">₱${item.price.toFixed(2)}</span>
+            <button class="remove-item-btn" onclick="removeBasketItem('${item.uid}')">Remove</button>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function removeBasketItem(uid) {
+      cart = cart.filter(item => item.uid !== uid);
+      refreshCartPriceTotal();
+      renderReviewItemList();
+      if (cart.length === 0) {
+        closeCheckoutModal();
+      }
+    }
+
+    function promptPreOrderConfirmation() {
+      const nameInput = document.getElementById('customer-name').value.trim();
+      if (!nameInput) {
+        alert("Please enter your name to complete the street ticket!");
+        return;
+      }
+      if (cart.length === 0) {
+        alert("Your basket is empty!");
+        return;
+      }
+
+      const randomIndex = Math.floor(Math.random() * tagalogMonickers.length);
+      const chosenMonicker = tagalogMonickers[randomIndex];
+      
+      const fullDisplayBranding = `${nameInput} "${chosenMonicker}"`;
+      const orderNumber = Math.floor(1000 + Math.random() * 9000);
+      const grandTotalSum = cart.reduce((acc, item) => acc + item.price, 0);
+
+      const summaryMap = {};
+      cart.forEach(item => {
+        const key = `${item.name} (${item.sauce})`;
+        summaryMap[key] = (summaryMap[key] || 0) + 1;
+      });
+
+      let summaryString = "";
+      for (const [details, qty] of Object.entries(summaryMap)) {
+        summaryString += `${qty}x ${details}\n`;
+      }
+
+      document.getElementById('confirm-full-name').innerText = fullDisplayBranding;
+      document.getElementById('confirm-grand-total').innerText = `₱${grandTotalSum.toFixed(2)}`;
+      document.getElementById('confirm-items-summary').innerText = summaryString;
+
+      pendingOrderStaging = {
+        orderNumber: orderNumber,
+        fullName: fullDisplayBranding,
+        onlyName: nameInput,
+        onlyMonicker: chosenMonicker,
+        totalAmount: `₱${grandTotalSum.toFixed(2)}`,
+        itemsSummary: summaryString,
+        rawPayload: `ORDER:${orderNumber}\nCUSTOMER:${fullDisplayBranding}\nTOTAL:${grandTotalSum.toFixed(2)}\nITEMS:\n${summaryString}`
+      };
+
+      document.getElementById('confirm-modal').classList.add('show');
+    }
+
+    function continueShopping() {
+      pendingOrderStaging = null; 
+      closeConfirmModal();
+      closeCheckoutModal();
+    }
+
+    function generateFinalTicketAndQr() {
+      if (!pendingOrderStaging) return;
+      
+      activeOrderData = { ...pendingOrderStaging, status: 'pending' };
+      pendingOrderStaging = null;
+
+      closeConfirmModal();
+      closeCheckoutModal();
+
+      renderQrWindow(activeOrderData);
+      document.getElementById('active-ticket-shortcut').style.display = 'flex';
+      
+      // Fire up the fake progress simulation loop
+      startFakeProgressTracker();
+    }
+
+    function renderQrWindow(dataObj) {
+      document.getElementById('qr-order-id').innerText = `Order #${dataObj.orderNumber}`;
+      document.getElementById('customer-monicker-title').innerText = dataObj.fullName;
+      document.getElementById('qr-summary').innerText = `TOTAL DUE: ${dataObj.totalAmount}\n\n${dataObj.itemsSummary}`;
+
+      document.getElementById('qrcode').innerHTML = "";
+
+      new QRCode(document.getElementById("qrcode"), {
+        text: dataObj.rawPayload,
+        width: 180,
+        height: 180,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+      });
+
+      document.getElementById('qr-modal').classList.add('show');
+    }
+
+    function reopenActiveOrder() {
+      if (!activeOrderData) return;
+      renderQrWindow(activeOrderData);
+    }
+
+    // --- FAKE PROGRESS TIMELINE ENGINE ---
+    function startFakeProgressTracker() {
+      if (fakeProgressInterval) clearInterval(fakeProgressInterval);
+      elapsedSeconds = 0;
+      
+      const stepPrep = document.getElementById('step-prep');
+      const stepFry = document.getElementById('step-fry');
+      const stepReady = document.getElementById('step-ready');
+      const subStatus = document.getElementById('tracker-sub-status');
+
+      function updateVisuals() {
+        elapsedSeconds++;
+
+        // State 1: Ordered / Prepping (0 to 1.5 minutes)
+        if (elapsedSeconds <= 90) {
+          stepPrep.classList.add('active');
+          stepFry.classList.remove('active');
+          stepReady.classList.remove('active');
+          stepPrep.querySelector('.step-icon').classList.add('animate-bounce');
+          stepFry.querySelector('.step-icon').classList.remove('animate-bounce');
+          stepReady.querySelector('.step-icon').classList.remove('animate-bounce');
+          subStatus.innerText = "Kuya received order & prepping ingredients...";
+        } 
+        // State 2: Frying Now (1.5 to 4.5 minutes)
+        else if (elapsedSeconds > 90 && elapsedSeconds <= 270) {
+          stepPrep.classList.remove('active');
+          stepFry.classList.add('active');
+          stepReady.classList.remove('active');
+          stepPrep.querySelector('.step-icon').classList.remove('animate-bounce');
+          stepFry.querySelector('.step-icon').classList.add('animate-bounce');
+          stepReady.querySelector('.step-icon').classList.remove('animate-bounce');
+          subStatus.innerText = "Your street bites are sizzling hot in the fryer!";
+        } 
+        // State 3: Saucing & Dressing (4.5 to 6.5 minutes)
+        else if (elapsedSeconds > 270 && elapsedSeconds <= 390) {
+          stepPrep.classList.remove('active');
+          stepFry.classList.remove('active');
+          stepReady.classList.add('active');
+          stepPrep.querySelector('.step-icon').classList.remove('animate-bounce');
+          stepFry.querySelector('.step-icon').classList.remove('animate-bounce');
+          stepReady.querySelector('.step-icon').classList.add('animate-bounce');
+          subStatus.innerText = "Pouring your custom glaze ratio & packaging...";
+        } 
+        // State 4: Standing hold waiting for loud speaker announcement (6.5 minutes+)
+        else {
+          subStatus.innerText = "Food ready! Listen to the loud speaker for your name!";
+          clearInterval(fakeProgressInterval);
+        }
+      }
+
+      fakeProgressInterval = setInterval(updateVisuals, 1000);
+      updateVisuals();
+    }
   </script>
 </body>
 </html>
