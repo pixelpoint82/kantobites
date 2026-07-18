@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kanto Bites - Kuya's Fryer Dashboard</title>
+  <style>
+    :root {
+      --primary: #ea580c;
+      --primary-light: #ffedd5;
+      --bg-main: #0f172a; /* Dark industrial slate for high contrast under stall lights */
+      --bg-card: #1e293b;
+      --text-light: #f8fafc;
+      --text-muted: #94a3b8;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --radius-xl: 20px;
+      --radius-lg: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-light);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 16px;
+      min-height: 100vh;
+    }
+
+    .dashboard-wrapper {
+      width: 100%;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    header {
+      background-color: var(--primary);
+      padding: 16px;
+      border-radius: var(--radius-lg);
+      margin-bottom: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 900; }
+    header p { font-size: 0.8rem; opacity: 0.9; }
+
+    .section-title {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .queue-count {
+      background-color: var(--bg-card);
+      padding: 2px 8px;
+      border-radius: 20px;
+      color: var(--text-light);
+      font-size: 0.8rem;
+    }
+
+    /* Ticket Card Grid Layout */
+    .ticket-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .ticket-card {
+      background-color: var(--bg-card);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      border-left: 6px solid var(--warning);
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+      transition: transform 0.2s;
+    }
+
+    .ticket-card.frying { border-left-color: #3b82f6; }
+    .ticket-card.ready { border-left-color: var(--success); opacity: 0.6; }
+
+    .ticket-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+      border-bottom: 1px dashed #334155;
+      padding-bottom: 8px;
+    }
+
+    .order-id { font-size: 1.1rem; font-weight: 900; color: var(--text-light); }
+    .status-badge {
+      font-size: 0.7rem;
+      font-weight: bold;
+      padding: 4px 8px;
+      border-radius: 20px;
+      text-transform: uppercase;
+    }
+    .status-badge.pending { background-color: #7c2d12; color: #ffedd5; }
+    .status-badge.frying { background-color: #1e3a8a; color: #dbeafe; }
+    .status-badge.ready { background-color: #064e3b; color: #d1fae5; }
+
+    .customer-branding {
+      font-size: 1.15rem;
+      font-weight: bold;
+      color: #fdba74;
+      margin-bottom: 8px;
+    }
+
+    .items-breakdown {
+      font-family: monospace;
+      font-size: 0.9rem;
+      background-color: #0f172a;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 14px;
+      white-space: pre-line;
+      color: #e2e8f0;
+      line-height: 1.4;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .action-btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: white;
+      text-transform: uppercase;
+    }
+    .btn-fry { background-color: #2563eb; }
+    .btn-fry:hover { background-color: #1d4ed8; }
+    .btn-ready { background-color: var(--success); }
+    .btn-ready:hover { background-color: #059669; }
+    .btn-clear { background-color: #475569; color: #cbd5e1; }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+      border: 2px dashed #334155;
+      border-radius: var(--radius-lg);
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="dashboard-wrapper">
+    <header>
+      <div>
+        <h1>KUYA'S DASHBOARD</h1>
+        <p>Stall Order Management Terminal</p>
+      </div>
+      <div id="live-indicator" style="color: var(--success); font-weight: bold; font-size: 0.85rem;">● Listening Live</div>
+    </header>
+
+    <div class="section-title">
+      <span>Active Orders Queue</span>
+      <span class="queue-count" id="ticket-count">0 Tickets</span>
+    </div>
+
+    <div id="vendor-queue-container" class="ticket-list">
+      <!-- Live Ticket Cards inject here dynamically -->
+    </div>
+  </div>
+
+  <script>
+    let activeOrders = [];
+
+    // Initialize Dashboard data from local repository state
+    function loadOrdersFromStorage() {
+      const stored = localStorage.getItem('kanto_active_orders');
+      activeOrders = stored ? JSON.parse(stored) : [];
+      renderQueue();
+    }
+
+    function saveOrdersToStorage() {
+      localStorage.setItem('kanto_active_orders', JSON.stringify(activeOrders));
+      
+      // Update fallback variables linked directly to the client tracker interface state
+      if (activeOrders.length > 0) {
+        // Broadcast structural updates out using the most recent ticket in play
+        const topOrder = activeOrders[activeOrders.length - 1];
+        localStorage.setItem('kanto_current_status', topOrder.status);
+      }
+      renderQueue();
+    }
+
+    // Listens out to live storage events arriving across customer page windows
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'kanto_active_orders' || e.key === 'kanto_new_order_trigger') {
+        loadOrdersFromStorage();
+      }
+    });
+
+    function advanceToFrying(orderNumber) {
+      const idx = activeOrders.findIndex(o => o.orderNumber === orderNumber);
+      if (idx !== -1) {
+        activeOrders[idx].status = 'frying';
+        localStorage.setItem(`kanto_status_${orderNumber}`, 'frying');
+        saveOrdersToStorage();
+      }
+    }
+
+    function advanceToReady(orderNumber) {
+      const idx = activeOrders.findIndex(o => o.orderNumber === orderNumber);
+      if (idx !== -1) {
+        activeOrders[idx].status = 'ready';
+        localStorage.setItem(`kanto_status_${orderNumber}`, 'ready');
+        saveOrdersToStorage();
+        
+        // Triggers audio broadcast call alert window flag directly to customer window pipeline
+        localStorage.setItem('kanto_audio_callout_trigger', JSON.stringify({
+          name: activeOrders[idx].onlyName,
+          monicker: activeOrders[idx].onlyMonicker,
+          timestamp: Date.now()
+        }));
+      }
+    }
+
+    function clearTicket(orderNumber) {
+      activeOrders = activeOrders.filter(o => o.orderNumber !== orderNumber);
+      localStorage.removeItem(`kanto_status_${orderNumber}`);
+      saveOrdersToStorage();
+    }
+
+    function renderQueue() {
+      const container = document.getElementById('vendor-queue-container');
+      const countLabel = document.getElementById('ticket-count');
+      container.innerHTML = "";
+      
+      countLabel.innerText = `${activeOrders.length} Tickets`;
+
+      if (activeOrders.length === 0) {
+        container.innerHTML = `<div class="empty-state">🍢 No incoming orders yet.<br>Waiting for customers to scan combos...</div>`;
+        return;
+      }
+
+      // Render oldest pending items first at the top of the tray screen layout
+      activeOrders.forEach(order => {
+        const card = document.createElement('div');
+        card.className = `ticket-card ${order.status || 'pending'}`;
+        
+        let statusText = 'Pending';
+        let actionButtons = `<button class="action-btn btn-fry" onclick="advanceToFrying(${order.orderNumber})">🔥 Start Frying</button>`;
+        
+        if (order.status === 'frying') {
+          statusText = 'Frying Now';
+          actionButtons = `<button class="action-btn btn-ready" onclick="advanceToReady(${order.orderNumber})">🥤 Mark Ready & Call</button>`;
+        } else if (order.status === 'ready') {
+          statusText = 'Ready / Sauced';
+          actionButtons = `<button class="action-btn btn-clear" onclick="clearTicket(${order.orderNumber})">🗑️ Done / Clear</button>`;
+        }
+
+        card.innerHTML = `
+          <div class="ticket-header">
+            <span class="order-id">Ticket #${order.orderNumber}</span>
+            <span class="status-badge ${order.status || 'pending'}">${statusText}</span>
+          </div>
+          <div class="customer-branding">${order.fullName}</div>
+          <div class="items-breakdown">${order.itemsSummary}</div>
+          <div class="action-row">
+            ${actionButtons}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // Document Startup Hooks
+    document.addEventListener("DOMContentLoaded", loadOrdersFromStorage);
+  </script>
+</body>
+</html>
