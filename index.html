@@ -407,14 +407,14 @@
     ];
 
     const tagalogMonickers = [
-      "Ang Crush ng Bayan", "Ang Alamat ng Kanto", "Ang Hari ng Sawsawan", "Ang Pambansang Bunso",
-      "Bida sa Inuman", "Ang Lodi ng Lahat", "Ang Chika Minute Expert", "Ang Tagapagligtas ng Barya",
-      "Master ng Estetiko", "Ang Palaging Gutom", "Ang Reyna ng Hugot", "Ang taga-Ubos ng Fishball",
-      "Paboritong Suki ni Kuya", "Ang Taga-hingi ng Sukli", "Ang Talentadong Dukha", "Ang Walang Kupas",
-      "Boy Tusok-Tusok", "Ang Prinsesa ng Kalsada", "Ang Palaging Low-Batt", "Ang Hypebeast ng Davao",
-      "Ang Sobra sa Sarsa", "Ang Taga-Kain ng Labis", "Ang Maton ng Pila", "Ang Certified Marites",
-      "Ang Laging Tulog", "Ang Bossing ng Plasa", "Ang Kumakain Nang Tahimik", "Ang Master Chef ng Tabi-Tabi",
-      "Ang Suki ng Suka", "Ang Kampyon ng Kanto", "Ang taga bayad", "Ang tagapagligtas ng na aapi"
+      "Ang Crush ng Bayan", "Ang Alamat ng Kanto", "Hari ng Sawsawan", "Ang Pambansang Bunso",
+      "Bida sa Inuman", "Ang Lodi ng Lahat", "Chika Minute Expert", "Ang Tagapagligtas ng Barya",
+      "Master ng Estetiko", "Ang Palaging Gutom", "Reyna ng Hugot", "Ang taga-Ubos ng Fishball",
+      "Paboritong Suki ni Kuya", "Ang Taga-hingi ng Sukli", "Talentadong Seaman", "Ang Walang Kupas",
+      "Boy Tusok-Tusok", "Prinsesa ng Kalsada", "Ang Palaging Low-Batt", "Hypebeast ng Tondo",
+      "Ang Sobra sa Sarsa", "Taga-Kain ng Labis", "Ang Maton ng Pila", "Certified Marites",
+      "Ang Laging Tulog", "Bossing ng Plasa", "Ang Kumakain Nang Tahimik", "Master Chef ng Tabi-Tabi",
+      "Ang Suki ng Suka", "Ang Kampyon ng Kanto"
     ];
 
     let cart = [];
@@ -422,7 +422,6 @@
     let pendingOrderStaging = null; 
     let activeOrderData = null; 
     let fakeProgressInterval = null;
-    let elapsedSeconds = 0;
 
     // Render Menu Cards
     const menuContainer = document.getElementById('menu-container');
@@ -443,6 +442,16 @@
       `;
       menuContainer.appendChild(card);
     });
+
+    // CHECK FOR PRE-EXISTING ORDER ON BOOTSTRAP INITIALIZATION
+    window.onload = function() {
+      const savedOrder = localStorage.getItem('kanto_customer_active_order');
+      if (savedOrder) {
+        activeOrderData = JSON.parse(savedOrder);
+        document.getElementById('active-ticket-shortcut').style.display = 'flex';
+        startFakeProgressTracker();
+      }
+    };
 
     function openCustomization(item) {
       currentSelectedItem = item;
@@ -570,6 +579,7 @@
         onlyMonicker: chosenMonicker,
         totalAmount: `₱${grandTotalSum.toFixed(2)}`,
         itemsSummary: summaryString,
+        createdAtTimestamp: Date.now(), // SAVE THE CURRENT TIMEOUT REFERENCE STAMP
         rawPayload: `ORDER:${orderNumber}\nCUSTOMER:${fullDisplayBranding}\nTOTAL:${grandTotalSum.toFixed(2)}\nITEMS:\n${summaryString}`
       };
 
@@ -588,13 +598,19 @@
       activeOrderData = { ...pendingOrderStaging, status: 'pending' };
       pendingOrderStaging = null;
 
+      // COMMIT PERMANENTLY TO LOCAL STORAGE BEFORE DISMISSING CONTROLS
+      localStorage.setItem('kanto_customer_active_order', JSON.stringify(activeOrderData));
+
       closeConfirmModal();
       closeCheckoutModal();
 
       renderQrWindow(activeOrderData);
       document.getElementById('active-ticket-shortcut').style.display = 'flex';
       
-      // Fire up the fake progress simulation loop
+      // Clear out the temporary cart basket inputs
+      cart = [];
+      refreshCartPriceTotal();
+      
       startFakeProgressTracker();
     }
 
@@ -622,10 +638,10 @@
       renderQrWindow(activeOrderData);
     }
 
-    // --- FAKE PROGRESS TIMELINE ENGINE ---
+    // --- REFRESH-PROOF TIMESTAMP PROGRESS TRACKER ENGINE ---
     function startFakeProgressTracker() {
       if (fakeProgressInterval) clearInterval(fakeProgressInterval);
-      elapsedSeconds = 0;
+      if (!activeOrderData || !activeOrderData.createdAtTimestamp) return;
       
       const stepPrep = document.getElementById('step-prep');
       const stepFry = document.getElementById('step-fry');
@@ -633,7 +649,10 @@
       const subStatus = document.getElementById('tracker-sub-status');
 
       function updateVisuals() {
-        elapsedSeconds++;
+        if (!activeOrderData) return;
+        
+        // Calculate the exact elapsed seconds since the order timestamp was initialized
+        const elapsedSeconds = Math.floor((Date.now() - activeOrderData.createdAtTimestamp) / 1000);
 
         // State 1: Ordered / Prepping (0 to 1.5 minutes)
         if (elapsedSeconds <= 90) {
@@ -667,6 +686,12 @@
         } 
         // State 4: Standing hold waiting for loud speaker announcement (6.5 minutes+)
         else {
+          stepPrep.classList.remove('active');
+          stepFry.classList.remove('active');
+          stepReady.classList.add('active');
+          stepPrep.querySelector('.step-icon').classList.remove('animate-bounce');
+          stepFry.querySelector('.step-icon').classList.remove('animate-bounce');
+          stepReady.querySelector('.step-icon').classList.add('animate-bounce');
           subStatus.innerText = "Food ready! Listen to the loud speaker for your name!";
           clearInterval(fakeProgressInterval);
         }
