@@ -165,7 +165,6 @@
     let ordersQueue = [];
     let html5QrcodeScanner = null;
 
-    // Load existing local system cache if testing on a single device
     function initLoad() {
       const stored = localStorage.getItem('kanto_active_orders');
       if (stored) {
@@ -184,7 +183,6 @@
       }
 
       ordersQueue.forEach((order, index) => {
-        // Sync state down to internal localstorage key tags
         const liveStatus = localStorage.getItem(`kanto_status_${order.orderNumber}`) || order.status || 'pending';
         order.status = liveStatus;
 
@@ -227,6 +225,35 @@
       localStorage.setItem(`kanto_status_${order.orderNumber}`, newStatus);
       localStorage.setItem('kanto_active_orders', JSON.stringify(ordersQueue));
       renderQueue();
+
+      // Trigger text-to-speech announcement if the order is marked as ready
+      if (newStatus === 'ready') {
+        announceOrderReady(order);
+      }
+    }
+
+    // TEXT TO SPEECH AUDIO ENGINE
+    function announceOrderReady(order) {
+      if ('speechSynthesis' in window) {
+        // Construct the announcement sentence using Taglish framing for local flavor
+        const announcementText = `Attention please. Order number ${order.orderNumber} for ${order.fullName} is now ready for pick up! Enjoy your hot kanto bites!`;
+        
+        const utterance = new SpeechSynthesisUtterance(announcementText);
+        
+        // Settings for a clear, crisp voice layout over a street speaker
+        utterance.rate = 0.95;  // Slightly slower so it's clear over street noise
+        utterance.pitch = 1.0; 
+        utterance.volume = 1.0; 
+        
+        // Optional: Pick a standard local English variant if available in the device cache
+        const voices = window.speechSynthesis.getVoices();
+        const localVoice = voices.find(voice => voice.lang.includes('PH') || voice.lang.includes('EN'));
+        if (localVoice) utterance.voice = localVoice;
+
+        window.speechSynthesis.speak(utterance);
+      } else {
+        console.log("Speech synthesis is not supported on this device/browser context.");
+      }
     }
 
     function clearTicket(index) {
@@ -237,7 +264,6 @@
       renderQueue();
     }
 
-    // SCANNER INTERACTION PARSER ENGINE
     function toggleScanner() {
       const box = document.getElementById('scanner-container');
       if (box.style.display === 'block') {
@@ -254,11 +280,10 @@
         { facingMode: "environment" }, 
         { fps: 10, qrbox: { width: 250, height: 250 } },
         (decodedText) => {
-          // Success Callback: Parse the string data payload format safely
           stopScanner();
           parseScannedQrData(decodedText);
         },
-        () => { /* Keep scanning silently */ }
+        () => { }
       ).catch(() => {
         alert("Camera initialization failed. Make sure you gave camera permissions!");
         stopScanner();
@@ -279,17 +304,14 @@
           return;
         }
 
-        // Split text blocks using our string formatting template
         const lines = text.split('\n');
         const orderNumber = lines[0].replace("ORDER:", "").trim();
         const fullName = lines[1].replace("CUSTOMER:", "").trim();
         const totalAmount = "₱" + lines[2].replace("TOTAL:", "").trim();
         
-        // Items metadata begins at block line indexing index position 4
         const itemsStartIndex = text.indexOf("ITEMS:\n") + 7;
         const itemsSummary = text.substring(itemsStartIndex).trim();
 
-        // Prevent duplicate scanning injection loops
         if (ordersQueue.some(o => o.orderNumber == orderNumber)) {
           alert(`Order #${orderNumber} is already in your dashboard queue list!`);
           return;
@@ -314,12 +336,10 @@
       }
     }
 
-    // Listen to local triggers if running on the same machine
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'kanto_new_order_trigger' || e.key === 'kanto_active_orders') {
-        initLoad();
-      }
-    });
+    // Pre-load audio voices layout profile setup
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.getVoices();
+    }
 
     window.onload = initLoad;
   </script>
