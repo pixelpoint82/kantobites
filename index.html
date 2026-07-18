@@ -113,6 +113,7 @@
       text-align: center;
       opacity: 0.25;
       transition: opacity 0.4s ease, color 0.4s ease;
+      z-index: 2;
     }
     .step.active {
       opacity: 1;
@@ -121,7 +122,40 @@
     }
     .step-icon { font-size: 1.75rem; }
     .step-label { font-size: 0.65rem; margin-top: 4px; }
-    .step-line { height: 2px; background-color: #e2e8f0; flex: 1; margin: 0 8px; margin-top: -12px; }
+    
+    /* ANIMATED LINE DESIGN PROPS */
+    .step-line {
+      height: 4px;
+      background-color: #e2e8f0;
+      flex: 1;
+      margin: 0 -4px;
+      margin-top: -16px;
+      position: relative;
+      border-radius: var(--radius-full);
+      overflow: hidden;
+      z-index: 1;
+    }
+    .step-line-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--primary) 0%, #f97316 50%, #fde047 100%);
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+    .step-line.active-pulse .step-line-fill {
+      width: 100%;
+    }
+    .step-line.active-pulse .step-line-fill::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0) 100%);
+      animation: linePulse 1.5s infinite linear;
+    }
+    @keyframes linePulse {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
     
     .animate-bounce {
       animation: bounce 0.8s infinite alternate;
@@ -187,7 +221,7 @@
     .text-input { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: var(--radius-lg); font-size: 0.95rem; outline: none; }
     .text-input:focus { border-color: var(--primary); }
 
-    /* Sauce Configuration UI */
+    /* Sauce and Powder Dynamic Configuration UIs */
     .sauce-group-box { background-color: #fff7ed; padding: 16px; border-radius: var(--radius-lg); margin-bottom: 24px; }
     .sauce-slider-wrap { margin-bottom: 16px; }
     .slider-meta { display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: bold; color: #9a3412; margin-bottom: 6px; }
@@ -278,12 +312,12 @@
           <span class="step-icon">🍢</span>
           <span class="step-label">Ordered</span>
         </div>
-        <div class="step-line"></div>
+        <div class="step-line" id="line-prep-fry"><div class="step-line-fill"></div></div>
         <div class="step" id="step-fry">
           <span class="step-icon">🔥</span>
           <span class="step-label">Frying Now</span>
         </div>
-        <div class="step-line"></div>
+        <div class="step-line" id="line-fry-ready"><div class="step-line-fill"></div></div>
         <div class="step" id="step-ready">
           <span class="step-icon">🥤</span>
           <span class="step-label">Ready/Sauced</span>
@@ -302,16 +336,39 @@
         <h3 id="modal-item-title">Customize Item</h3>
         <button onclick="closeModal()" class="close-btn">✕</button>
       </div>
-      <div class="sauce-group-box">
-        <p style="font-size: 0.875rem; font-weight: bold; margin-bottom: 12px;">Customize Sawsawan Mix Ratio:</p>
-        <div class="sauce-slider-wrap">
-          <div class="slider-meta"><span>Manong's Sweet Sauce</span><span id="sweet-val">50%</span></div>
-          <input type="range" id="slider-sweet" min="0" max="100" value="50" class="sauce-slider" oninput="updateSauceLabels()">
+      
+      <!-- DYNAMIC CUSTOMIZATION WRAPPERS -->
+      <div id="sauce-sliders-container" class="sauce-group-box">
+        <p id="custom-flavor-prompt-title" style="font-size: 0.875rem; font-weight: bold; margin-bottom: 12px;">Customize Sawsawan Mix Ratio:</p>
+        
+        <!-- Field Set A: Liquid Sauces (Fishball, Kwek, Squidball) -->
+        <div id="group-liquid-sauces">
+          <div class="sauce-slider-wrap">
+            <div class="slider-meta"><span>Manong's Sweet Sauce</span><span id="sweet-val">50%</span></div>
+            <input type="range" id="slider-sweet" min="0" max="100" value="50" class="sauce-slider" oninput="updateSauceLabels()">
+          </div>
+          <div class="sauce-slider-wrap">
+            <div class="slider-meta"><span>Spicy Pinoy Vinegar</span><span id="spicy-val">50%</span></div>
+            <input type="range" id="slider-spicy" min="0" max="100" value="50" class="sauce-slider" oninput="updateSauceLabels()">
+          </div>
         </div>
-        <div class="sauce-slider-wrap">
-          <div class="slider-meta"><span>Spicy Pinoy Vinegar</span><span id="spicy-val">50%</span></div>
-          <input type="range" id="slider-spicy" min="0" max="100" value="50" class="sauce-slider" oninput="updateSauceLabels()">
+
+        <!-- Field Set B: Fry Seasoning Powders (Exclusively for Fries) -->
+        <div id="group-powder-toppings" style="display: none;">
+          <div class="sauce-slider-wrap">
+            <div class="slider-meta"><span>🧀 Cheese Powder</span><span id="cheese-val">33%</span></div>
+            <input type="range" id="slider-cheese" min="0" max="100" value="33" class="sauce-slider" oninput="updatePowderLabels()">
+          </div>
+          <div class="sauce-slider-wrap">
+            <div class="slider-meta"><span>🧅 Sour Cream Powder</span><span id="sour-val">33%</span></div>
+            <input type="range" id="slider-sour" min="0" max="100" value="33" class="sauce-slider" oninput="updatePowderLabels()">
+          </div>
+          <div class="sauce-slider-wrap">
+            <div class="slider-meta"><span>🔥 Barbeque Powder</span><span id="bbq-val">34%</span></div>
+            <input type="range" id="slider-bbq" min="0" max="100" value="34" class="sauce-slider" oninput="updatePowderLabels()">
+          </div>
         </div>
+
       </div>
       <button id="add-to-cart-btn" class="submit-btn">Confirm Combo & Add</button>
     </div>
@@ -456,6 +513,22 @@
     function openCustomization(item) {
       currentSelectedItem = item;
       document.getElementById('modal-item-title').innerText = `Customize ${item.name}`;
+      
+      const promptTitle = document.getElementById('custom-flavor-prompt-title');
+      const liquidGroup = document.getElementById('group-liquid-sauces');
+      const powderGroup = document.getElementById('group-powder-toppings');
+
+      // CONDITIONAL SELECTION BLOCK FOR FRENCH FRIES POWDER COATING
+      if (item.id === '3') {
+        promptTitle.innerText = "Select Powder Seasoning Blend Ratio:";
+        liquidGroup.style.display = 'none';
+        powderGroup.style.display = 'block';
+      } else {
+        promptTitle.innerText = "Customize Sawsawan Mix Ratio:";
+        liquidGroup.style.display = 'block';
+        powderGroup.style.display = 'none';
+      }
+
       document.getElementById('custom-modal').classList.add('show');
     }
 
@@ -475,15 +548,34 @@
       document.getElementById('spicy-val').innerText = `${document.getElementById('slider-spicy').value}%`;
     }
 
+    function updatePowderLabels() {
+      document.getElementById('cheese-val').innerText = `${document.getElementById('slider-cheese').value}%`;
+      document.getElementById('sour-val').innerText = `${document.getElementById('slider-sour').value}%`;
+      document.getElementById('bbq-val').innerText = `${document.getElementById('slider-bbq').value}%`;
+    }
+
     document.getElementById('add-to-cart-btn').onclick = () => {
       if (!currentSelectedItem) return;
-      const sweet = document.getElementById('slider-sweet').value;
-      const spicy = document.getElementById('slider-spicy').value;
+      
+      let flavorCombinationText = "";
+
+      if (currentSelectedItem.id === '3') {
+        // Fetch properties from powder configurations
+        const chs = document.getElementById('slider-cheese').value;
+        const scr = document.getElementById('slider-sour').value;
+        const bbq = document.getElementById('slider-bbq').value;
+        flavorCombinationText = `${chs}% Cheese / ${scr}% SourCrm / ${bbq}% BBQ`;
+      } else {
+        // Fetch properties from traditional sauce sliders
+        const sweet = document.getElementById('slider-sweet').value;
+        const spicy = document.getElementById('slider-spicy').value;
+        flavorCombinationText = `${sweet}% Swt / ${spicy}% Spc`;
+      }
       
       cart.push({
         uid: Date.now() + Math.random().toString(36).substr(2, 9), 
         ...currentSelectedItem,
-        sauce: `${sweet}% Swt / ${spicy}% Spc`
+        sauce: flavorCombinationText
       });
 
       refreshCartPriceTotal();
@@ -579,7 +671,7 @@
         onlyMonicker: chosenMonicker,
         totalAmount: `₱${grandTotalSum.toFixed(2)}`,
         itemsSummary: summaryString,
-        createdAtTimestamp: Date.now(), // SAVE THE CURRENT TIMEOUT REFERENCE STAMP
+        createdAtTimestamp: Date.now(),
         rawPayload: `ORDER:${orderNumber}\nCUSTOMER:${fullDisplayBranding}\nTOTAL:${grandTotalSum.toFixed(2)}\nITEMS:\n${summaryString}`
       };
 
@@ -638,7 +730,7 @@
       renderQrWindow(activeOrderData);
     }
 
-    // --- REFRESH-PROOF TIMESTAMP PROGRESS TRACKER ENGINE ---
+    // --- REFRESH-PROOF TIMESTAMP PROGRESS TRACKER ENGINE (WITH TIMELINE CONNECTING LINE ANIMATION) ---
     function startFakeProgressTracker() {
       if (fakeProgressInterval) clearInterval(fakeProgressInterval);
       if (!activeOrderData || !activeOrderData.createdAtTimestamp) return;
@@ -647,6 +739,9 @@
       const stepFry = document.getElementById('step-fry');
       const stepReady = document.getElementById('step-ready');
       const subStatus = document.getElementById('tracker-sub-status');
+      
+      const linePrepFry = document.getElementById('line-prep-fry');
+      const lineFryReady = document.getElementById('line-fry-ready');
 
       function updateVisuals() {
         if (!activeOrderData) return;
@@ -662,6 +757,10 @@
           stepPrep.querySelector('.step-icon').classList.add('animate-bounce');
           stepFry.querySelector('.step-icon').classList.remove('animate-bounce');
           stepReady.querySelector('.step-icon').classList.remove('animate-bounce');
+          
+          linePrepFry.classList.remove('active-pulse');
+          lineFryReady.classList.remove('active-pulse');
+          
           subStatus.innerText = "Kuya received order & prepping ingredients...";
         } 
         // State 2: Frying Now (1.5 to 4.5 minutes)
@@ -672,9 +771,13 @@
           stepPrep.querySelector('.step-icon').classList.remove('animate-bounce');
           stepFry.querySelector('.step-icon').classList.add('animate-bounce');
           stepReady.querySelector('.step-icon').classList.remove('animate-bounce');
+          
+          linePrepFry.classList.add('active-pulse');
+          lineFryReady.classList.remove('active-pulse');
+          
           subStatus.innerText = "Your street bites are sizzling hot in the fryer!";
         } 
-        // State 3: Saucing & Dressing (4.5 to 6.5 minutes)
+        // State 3: Saucing & Dressing / Shaking Powders (4.5 to 6.5 minutes)
         else if (elapsedSeconds > 270 && elapsedSeconds <= 390) {
           stepPrep.classList.remove('active');
           stepFry.classList.remove('active');
@@ -682,7 +785,11 @@
           stepPrep.querySelector('.step-icon').classList.remove('animate-bounce');
           stepFry.querySelector('.step-icon').classList.remove('animate-bounce');
           stepReady.querySelector('.step-icon').classList.add('animate-bounce');
-          subStatus.innerText = "Pouring your custom glaze ratio & packaging...";
+          
+          linePrepFry.classList.add('active-pulse');
+          lineFryReady.classList.add('active-pulse');
+          
+          subStatus.innerText = "Flavoring your items & packaging...";
         } 
         // State 4: Standing hold waiting for loud speaker announcement (6.5 minutes+)
         else {
@@ -691,7 +798,11 @@
           stepReady.classList.add('active');
           stepPrep.querySelector('.step-icon').classList.remove('animate-bounce');
           stepFry.querySelector('.step-icon').classList.remove('animate-bounce');
-          stepReady.querySelector('.step-icon').classList.add('animate-bounce');
+          stepReady.querySelector('.step-icon').classList.remove('animate-bounce');
+          
+          linePrepFry.classList.add('active-pulse');
+          lineFryReady.classList.add('active-pulse');
+          
           subStatus.innerText = "Food ready! Listen to the loud speaker for your name!";
           clearInterval(fakeProgressInterval);
         }
